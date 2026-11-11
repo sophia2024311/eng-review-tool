@@ -1442,26 +1442,45 @@ document.addEventListener('visibilitychange', () => {
 });
 
 chooseSaveBtn.addEventListener('click', async () => {
-  const safeName = (originalFileName || 'data.xlsx').replace(/[\\/:*?"<>|]/g, '_');
-  const t0 = Date.now();
   let handle = null;
-  // 클릭 직후 await 이전에 다른 작업 없이, 옵션 최소화해서 단 1회만 호출
-  try{
-    handle = await window.showSaveFilePicker({ suggestedName: safeName });
-  } catch(e){
-    const ms = Date.now() - t0;
-    const msg = (e && e.name === 'AbortError')
-      ? '저장 위치 설정이 취소되었습니다 (' + ms + 'ms)'
-      : '저장 창 오류: [' + (e && e.name) + '] ' + (e && e.message);
-    autosaveStatus.textContent = '[v12] ' + msg;
-    showToast(msg, 6000);
+  try {
+    handle = await window.showSaveFilePicker({
+      suggestedName: originalFileName || '검수완료.xlsx',
+      types: [{
+        description: 'Excel 통합 문서',
+        accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
+      }]
+    });
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      showToast('저장 위치 설정이 취소되었습니다.');
+    } else {
+      showToast('저장 창 오류: ' + (err && err.message));
+    }
     return;
   }
+
+  // ★ 핵심: 백그라운드 자동저장이 막히지 않도록 쓰기 권한을 지금 즉시 사전 확보
+  try {
+    if (handle.queryPermission) {
+      let perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted' && handle.requestPermission) {
+        perm = await handle.requestPermission({ mode: 'readwrite' });
+      }
+      if (perm !== 'granted') {
+        alert('파일 쓰기 권한이 허용되지 않아 자동 저장이 작동하지 않을 수 있습니다.');
+      }
+    }
+  } catch (pErr) {
+    console.warn('권한 확인 건너뜀:', pErr);
+  }
+
   saveHandle = handle;
   lastSaveFailed = false;
   updateAutosaveStatus();
   showToast('저장 위치 설정 완료: ' + handle.name);
-  // 위치를 고르는 순간 브라우저가 0바이트 빈 파일을 만들어 두므로, 바로 한 번 저장·검증
+
+  // 위치 지정 즉시 해당 파일에 1회 동기화 저장 (0바이트 빈 파일 방지 및 검증)
   await performSave(false);
 });
 
