@@ -1460,6 +1460,20 @@ chooseSaveBtn.addEventListener('click', async () => {
     return;
   }
 
+  // 파일 핸들 저장 및 상태 업데이트
+  saveHandle = handle;
+  lastSaveFailed = false;
+  updateAutosaveStatus();
+  showToast('저장 위치 설정 완료: ' + handle.name);
+
+  // 위치 지정 직후 최초 1회 저장 수행
+  try {
+    await performSave(false);
+  } catch (saveErr) {
+    console.error('초기 저장 오류:', saveErr);
+  }
+});
+
   // showSaveFilePicker로 방금 생성/선택한 파일은 이미 readwrite 권한이 있으므로
   // 사용자 제스처를 소모하는 requestPermission 호출은 건너뜁니다.
   saveHandle = handle;
