@@ -1460,6 +1460,22 @@ chooseSaveBtn.addEventListener('click', async () => {
     return;
   }
 
+  // showSaveFilePicker로 방금 생성/선택한 파일은 이미 readwrite 권한이 있으므로
+  // 사용자 제스처를 소모하는 requestPermission 호출은 건너뜁니다.
+  saveHandle = handle;
+  lastSaveFailed = false;
+  updateAutosaveStatus();
+  showToast('저장 위치 설정 완료: ' + handle.name);
+
+  // 위치 지정 즉시 1회 저장 (약간의 딜레이를 두어 크롬 핸들 초기화 보장)
+  setTimeout(async () => {
+    try {
+      await performSave(false);
+    } catch (saveErr) {
+      console.error('초기 저장 오류:', saveErr);
+    }
+  }, 100);
+});
   // ★ 핵심: 백그라운드 자동저장이 막히지 않도록 쓰기 권한을 지금 즉시 사전 확보
   try {
     if (handle.queryPermission) {
