@@ -1447,7 +1447,13 @@ chooseSaveBtn.addEventListener('click', async () => {
   let handle = null;
   // 클릭 직후 await 이전에 다른 작업 없이, 옵션 최소화해서 단 1회만 호출
   try{
-    handle = await window.showSaveFilePicker({ suggestedName: safeName });
+    handle = await window.showSaveFilePicker({
+      suggestedName: safeName,
+      types: [{
+        description: 'Excel Spreadsheet (*.xlsx)',
+        accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
+      }]
+    });
   } catch(e){
     const ms = Date.now() - t0;
     const msg = (e && e.name === 'AbortError')
