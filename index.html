@@ -1384,7 +1384,7 @@ async function performSave(isAuto){
           hint = ' · 엑셀에서 해당 파일이 열려 있으면 닫고 다시 시도해주세요';
         }
         showToast('선택한 파일에 저장 실패[' + (e && e.name) + '] ' + (e && e.message) + hint + ' · 데이터는 브라우저에 백업되어 있습니다', 9000);
-        autosaveStatus.textContent = '[v11] 마지막 저장 실패: [' + (e && e.name) + '] ' + (e && e.message) + hint;
+        autosaveStatus.textContent = '[v12] 마지막 저장 실패: [' + (e && e.name) + '] ' + (e && e.message) + hint;
         return;
       }
     } else {
@@ -1412,7 +1412,7 @@ function formatTime(d){
 }
 
 function updateAutosaveStatus(){
-  const modeText = saveHandle ? '[v11] 저장 위치 설정됨: ' + (saveHandle.name || '선택한 파일') + ' (엑셀 저장/10분마다 이 파일에 덮어쓰기)' : '[v11] 저장 위치 미설정: 저장 시 다운로드(다른 이름으로 저장 창) 방식';
+  const modeText = saveHandle ? '[v12] 저장 위치 설정됨: ' + (saveHandle.name || '선택한 파일') + ' (엑셀 저장/10분마다 이 파일에 덮어쓰기)' : '[v12] 저장 위치 미설정: 저장 시 다운로드(다른 이름으로 저장 창) 방식';
   const savedText = lastSavedAt ? ` · 마지막 저장 ${formatTime(lastSavedAt)}` : ' · 아직 저장 안 됨';
   autosaveStatus.textContent = modeText + savedText + ' · 브라우저 백업 켜짐';
 }
@@ -1443,40 +1443,25 @@ document.addEventListener('visibilitychange', () => {
 
 chooseSaveBtn.addEventListener('click', async () => {
   const safeName = (originalFileName || 'data.xlsx').replace(/[\\/:*?"<>|]/g, '_');
-  let handle = null;
-  let lastErr = null;
   const t0 = Date.now();
-  const diag = ' | 진단: secure=' + window.isSecureContext + ', iframe=' + (window.top !== window.self) + ', protocol=' + location.protocol + ', picker=' + (typeof window.showSaveFilePicker);
-  autosaveStatus.textContent = '[v11] 저장 창을 여는 중...' + diag;
-  showToast('저장 창을 여는 중...', 2000);
-  const attempts = [
-    { suggestedName: safeName, types: [{ description: 'Excel', accept: { [XLSX_MIME]: ['.xlsx'] } }] },
-    { suggestedName: 'review.xlsx' },
-    {}
-  ];
-  for (const opts of attempts){
-    try{
-      handle = await window.showSaveFilePicker(opts);
-      lastErr = null;
-      break;
-    } catch(e){
-      lastErr = e;
-      if (e && e.name === 'AbortError') break;
-      if (!(e instanceof TypeError)) break;       // 옵션 문제(TypeError)일 때만 단순한 옵션으로 재시도
-    }
-  }
-  if (!handle){
+  let handle = null;
+  // 클릭 직후 await 이전에 다른 작업 없이, 옵션 최소화해서 단 1회만 호출
+  try{
+    handle = await window.showSaveFilePicker({ suggestedName: safeName });
+  } catch(e){
     const ms = Date.now() - t0;
-    const msg = (lastErr && lastErr.name === 'AbortError' ? '저장 위치 설정 안 됨(취소 또는 브라우저 차단, ' + ms + 'ms 만에 종료)' : '저장 위치 설정 실패') + ': [' + (lastErr && lastErr.name) + '] ' + (lastErr && lastErr.message);
-    autosaveStatus.textContent = '[v11] ' + msg + diag;
-    showToast(msg, 9000);
+    const msg = (e && e.name === 'AbortError')
+      ? '저장 위치 설정이 취소되었습니다 (' + ms + 'ms)'
+      : '저장 창 오류: [' + (e && e.name) + '] ' + (e && e.message);
+    autosaveStatus.textContent = '[v12] ' + msg;
+    showToast(msg, 6000);
     return;
   }
   saveHandle = handle;
   lastSaveFailed = false;
   updateAutosaveStatus();
-  // 위치를 고르는 순간 브라우저가 0바이트 빈 파일을 만들어 두기 때문에,
-  // 첫 자동저장(10분 뒤)을 기다리지 않고 지금 바로 한 번 저장·검증한다.
+  showToast('저장 위치 설정 완료: ' + handle.name);
+  // 위치를 고르는 순간 브라우저가 0바이트 빈 파일을 만들어 두므로, 바로 한 번 저장·검증
   await performSave(false);
 });
 
